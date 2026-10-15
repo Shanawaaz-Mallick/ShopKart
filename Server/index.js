@@ -33,16 +33,50 @@ app.use(
   })
 );
 
-app.use("/customers", customerRoutes);
-app.use("/products", productRoutes);
-app.use("/wishlist", wishlistRoutes);
-app.use("/cart", cartRoutes);
-app.use("/orders", orderRoutes);
+const mountApiRoutes = (prefix) => {
+  app.use(`${prefix}/customers`, customerRoutes);
+  app.use(`${prefix}/products`, productRoutes);
+  app.use(`${prefix}/wishlist`, wishlistRoutes);
+  app.use(`${prefix}/cart`, cartRoutes);
+  app.use(`${prefix}/orders`, orderRoutes);
+};
 
-mongoose.connect(process.env.dbUrl)
-  .then(() => console.log("DB Connected"))
-  .catch((err) => console.log(err));
+mountApiRoutes("/api");
 
-app.listen(PORT, () => {
-  console.log(`Server started at ${PORT}`);
+// Keep the original paths working for the existing local Vite setup.
+if (process.env.NODE_ENV !== "production") {
+  mountApiRoutes("");
+}
+
+app.get("/api/health", (_req, res) => {
+  const connected = mongoose.connection.readyState === 1;
+  return res.status(connected ? 200 : 503).json({
+    success: connected,
+    database: connected ? "connected" : "disconnected",
+  });
 });
+
+if (process.env.NODE_ENV === "production") {
+  const clientBuildPath = join(__dirname, "../Client/vite-project/dist");
+  app.use(express.static(clientBuildPath));
+  app.get(/^(?!\/api(?:\/|$)).*/, (_req, res, next) => {
+    res.sendFile(join(clientBuildPath, "index.html"), (error) => {
+      if (error) next(error);
+    });
+  });
+}
+
+const startServer = async () => {
+  try {
+    await mongoose.connect(process.env.dbUrl);
+    console.log("DB Connected");
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server started at ${PORT}`);
+    });
+  } catch (error) {
+    console.error("Database connection failed:", error.message);
+    process.exit(1);
+  }
+};
+
+startServer();

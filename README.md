@@ -78,6 +78,18 @@ You can send this request from Postman. The product list reads its data from Mon
 
 Checkout uses Razorpay Test Mode. Test transactions do not charge real money. Use Razorpay's supported test payment details to simulate a successful or failed payment. A successful checkout is verified by the backend before the order is marked paid. See [Razorpay's Test Mode guide](https://razorpay.com/docs/server-integration/python/test-app/).
 
+## Deploy to Render
+
+The included `render.yaml` deploys the Express server and built React site as one web service. This keeps the browser and API on the same origin, which allows the login cookie to work without cross-site cookie settings.
+
+1. Push the latest `main` branch to GitHub.
+2. In Render, choose **New → Blueprint** and connect the `ShopKart` GitHub repository. Render reads the service configuration from `render.yaml`.
+3. When prompted, enter `dbUrl` and your Razorpay **Test Mode** `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET`. Render generates `JWT_SECRET`; do not put secret values in `render.yaml` or GitHub.
+4. If MongoDB Atlas is in use, add the deployed app's outbound addresses to Atlas **Network Access**. Atlas only accepts cluster connections from addresses on the project's IP access list. Avoid `0.0.0.0/0` unless you understand that it allows connection attempts from anywhere; use strong database credentials if a broad rule is temporarily required.
+5. Wait for the Render deploy to finish, then open the service URL. Check `<service-url>/api/health`; it should report that the database is connected.
+
+The free Render web service can spin down after inactivity, so its first request after a quiet period may take longer. See [Render's free instance limitations](https://render.com/docs/free).
+
 ## Main API routes
 
 | Feature | Routes |

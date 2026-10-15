@@ -5,9 +5,11 @@ import axios from "axios";
 // never sent back on later requests (like /customers/me), so the server
 // would treat every request as logged out.
 const api = axios.create({
-  // Keep the app usable if the Vite env file is missing or Vite has not been
-  // restarted since it changed. The local API listens on port 8000.
-  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8000",
+  // Local Vite uses the backend's existing paths. In production, the frontend
+  // and API share one origin and the backend is mounted under /api.
+  baseURL:
+    import.meta.env.VITE_API_BASE_URL ||
+    (import.meta.env.PROD ? "/api" : "http://localhost:8000"),
   withCredentials: true,
 });
 
