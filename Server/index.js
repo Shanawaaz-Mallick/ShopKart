@@ -22,6 +22,23 @@ dotenv.config({ path: join(__dirname, ".env") });
 const app = express();
 
 const PORT = process.env.PORT || 8000;
+let databaseConnectionPromise;
+
+const connectToDatabase = () => {
+  if (mongoose.connection.readyState === 1) return Promise.resolve();
+  if (!process.env.dbUrl) {
+    return Promise.reject(new Error("The dbUrl environment variable is not set."));
+  }
+
+  if (!databaseConnectionPromise) {
+    databaseConnectionPromise = mongoose.connect(process.env.dbUrl).catch((error) => {
+      databaseConnectionPromise = undefined;
+      throw error;
+    });
+  }
+
+  return databaseConnectionPromise;
+};
 
 app.use(express.json());
 app.use(cookieParser());
@@ -32,6 +49,21 @@ app.use(
     credentials: true,
   })
 );
+
+// A Vercel Function can be started and stopped between requests, so establish
+// (and reuse) the MongoDB connection when each request reaches the app.
+app.use(async (_req, res, next) => {
+  try {
+    await connectToDatabase();
+    next();
+  } catch (error) {
+    console.error("Database connection failed:", error.message);
+    res.status(503).json({
+      success: false,
+      message: "Database unavailable. Check the server environment configuration.",
+    });
+  }
+});
 
 const mountApiRoutes = (prefix) => {
   app.use(`${prefix}/customers`, customerRoutes);
@@ -56,8 +88,8 @@ app.get("/api/health", (_req, res) => {
   });
 });
 
-if (process.env.NODE_ENV === "production") {
-  const clientBuildPath = join(__dirname, "../Client/vite-project/dist");
+if (process.env.NODE_ENV === "production" && !process.env.VERCEL) {
+  const clientBuildPath = join(__dirname, "../public");
   app.use(express.static(clientBuildPath));
   app.get(/^(?!\/api(?:\/|$)).*/, (_req, res, next) => {
     res.sendFile(join(clientBuildPath, "index.html"), (error) => {
@@ -68,7 +100,7 @@ if (process.env.NODE_ENV === "production") {
 
 const startServer = async () => {
   try {
-    await mongoose.connect(process.env.dbUrl);
+    await connectToDatabase();
     console.log("DB Connected");
     app.listen(PORT, "0.0.0.0", () => {
       console.log(`Server started at ${PORT}`);
@@ -79,4 +111,8 @@ const startServer = async () => {
   }
 };
 
-startServer();
+// Vercel imports the default export as a serverless Express function. Local
+// development and traditional Node hosts still start a persistent HTTP server.
+if (!process.env.VERCEL) startServer();
+
+export default app;
