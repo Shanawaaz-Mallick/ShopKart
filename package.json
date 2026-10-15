@@ -5,7 +5,7 @@
   "scripts": {
     "start": "node Server/index.js",
     "dev": "nodemon Server/index.js",
-    "build": "npm --prefix Client/vite-project ci && npm --prefix Client/vite-project run build"
+    "build": "npm --prefix Client/vite-project ci --include=dev && npm --prefix Client/vite-project run build"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
